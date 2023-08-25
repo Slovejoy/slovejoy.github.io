@@ -1,17 +1,14 @@
-title: 'b2a3e8.github.io'
-description: "A jekyll theme inspired by linux consoles for hackers, developers and script kiddies."
-baseurl: "/jekyll-theme-console-demo-dark"
-url: "https://b2a3e8.github.io"
+title: 'slovejoy.github.io'
+description: "Public Hackings from Renowed GUI Clicker Samuel Lovejoy"
+baseurl: "/"
+url: "https://slovejoy.github.io"
 
 header_pages:
   - index.md
-  - peter.md
   - about.md
-  - contact.md
+  - ctf.md
 
 style: dark
-
-footer: 'follow us on <a href="https://twitter.com/">twitter</a>'
 
 # Build settings
 markdown: kramdown

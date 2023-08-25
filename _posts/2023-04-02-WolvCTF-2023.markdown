@@ -1,0 +1,13 @@
+---
+layout: post
+title:  "WolvCTF 2023 Writeups"
+categories:
+---
+
+# WolvCTF 2023 Authcore Series Writeups
+This is a writeup for University of Michigan's 2023 WolvCTF competition. <br />
+I was the only solve for authcore-1, and present a partial writeup for the unsolved authcore-2.
+
+
+[authcore-1](/writeups/2023-04-02-authcore-1.html)
+[authcore-2](/writeups/2023-04-02-authcore-2.html)
