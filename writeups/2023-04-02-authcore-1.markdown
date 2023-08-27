@@ -148,7 +148,7 @@ void encrypt_read_buffer(byte *key,int dst,uint length,uint nonce,uint index)
   }
   return;
 }
-{% endhighlight %}</br> 
+{% endhighlight %}<br /> 
 Identifying this function is central to success in the problem. 
 
 <details>
