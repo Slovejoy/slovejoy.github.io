@@ -1,0 +1,83 @@
+---
+layout: post
+title:  "Implementing RISC-V CFI in Hardware"
+categories:
+---
+
+# Overview
+This article focuses on the implementation of Control Flow Integrity (CFI) protections in hardware for the RISC-V instruction set. lwn.net has a great article about an implementation for Intel x86 CPUs [here](https://lwn.net/Articles/889475/). <br />
+
+RISC-V is starting to draft its own standard extension called the *zicfiss* extension for reverse CFI and *zicfilp* for forward CFI. These together form the *zisslpcfi* ISA extension. Early ISA support means that hardware developers can already start implementing CFI with support for open-source toolchains like clang. The documentation GitHub can be found [here](https://github.com/riscv/riscv-cfi/tree/main). <br />
+
+# Background
+CFI comes into play when attackers have write primitives but do not yet have code execution. It is most similar to Data Execution Prevention (DEP), in that it acts as an additional hurdle that attackers must deal with. This makes the logistics of exploiting memory corruption vulnerabilities more difficult, but does not necessarily require an additional vulnerability, as is common with other security protections like ASLR and MTE. <br /> 
+
+CFI comes in two flavors— forward and reverse. Forward CFI involves the protection of the modification of function pointers. To bypass DEP, an attacker can use a write primitive to corrupt a function pointer to point to an attacker controlled location. With Forward CFI, resolved function pointers must point to specific values. <br />
+
+Reverse CFI is more complex. It involves preventing the call stack from getting corrupted, protecting against stack buffer overflows and stack pivots. The processor traces each call made, and if a thread tries to return to a location not in the call stack, the processor catches this and raises a CPU fault. <br />
+
+# Forward CFI Implementation
+
+In RISC-V, forward CFI is implemented as a *landing pad* instruction, which is executed as a NOP in the processor pipeline. This is a dedicated instruction in the *zicfilp* extension. Every indirect call (such as "jalr a0" in RISC-V or "call rax" in x86) must resolve to RISC-V's new instruction called *lpad*. <br />
+
+Like many other extensions, this feature must be explicitly enabled in the processor's Control Status Registers (CSRs). CSRs are how RISC-V cores track most of the state within the processor, such as active hardware threads, privilege, and machine trap addresses. In the simplest case, this is implemented as bit 41 "MPELP" in the *mstatus* register, with a "1" indicating that landing pads are expected. <br />
+
+Landing pads may also be labeled. This prevents an attacker from overwriting an indirect reference to "strcmp" to instead point to "system". The caller stores their label in the X7 register, while the callee stores their label in the lpad instruction. If enforcing, these labels must match otherwise a CPU fault is raised. <br />
+
+To implement this in HDL, this requires the following steps assuming only the base RV32/64I ISA with an in-order pipeline,
+- Modify the JALR instruction to track state via a variable like "is\_prev\_inst\_jalr"
+- Modify the approprite CSRs according to the specification to enable/disable Forward CFI
+- Add support for the lpad instruction in the pipeline
+
+```
+if (xLPE != 0)
+    // If PC not 4-byte aligned then software integrity fault
+    if (pc[1:0] != 0)
+        /* Cause software error exception */
+    // If landing pad label not matched -> software integrity fault
+    else if (inst.LPL != x7[31:12] && inst.LPL != 0 && ELP == LP_EXPECTED)
+        /* Cause software error exception */ 
+    else
+        ELP = NO_LP_EXPECTED
+else
+    no-op
+endif
+```
+
+# Reverse CFI Implementation 
+
+RISC-V elects to implement reverse CFI as a shadow stack in the *zicfiss* extension. This introduces the shadow-stack-pointer (ssp) unprivileged CSR. It also adds, 
+
+- The sspush instruction, which adds a register onto the shadow stack
+- The sspopchk instruction, which pops an address off the shadow stack and compares it against a register
+- The ssld instruction, which loads an address off of the shadow stack into a register
+- The ssincp instruction, which increments the address of the ssp register
+- The ssrdp instruction, which reads the value of the ssp register into a GPR 
+<br /> 
+The shadow stack operates in a similar vein to stack canaries. The return address is pushed to the shadow stack in a function prologue using sspush, then compared against in the epilogue using the sspopchk instruction. Since the shadow stack is tracked inside of a separate memory region, it increases the complexity of memory corruption vulnerabilities on the stack, and in turn mitigates ROP/JOP. <br />
+
+```
+function_entry:
+   c.addi sp,sp,-8 # push link register x1
+   c.sd x1,(sp) # on data stack
+   c.sspush x1 # push link register x1 on shadow stack
+   ...
+   c.ld x5,(sp) # pop link register x5 from data stack
+   c.addi sp,sp,8
+   c.sspopchk x5 # compare link register x5 to shadow
+   # return address; faults if not same
+   c.jr x5
+```
+
+Interestingly, RISC-V also extends its physical memory protection (PMP) *Smepmp* to include shadow stack pages. This protections intends for shadow stack instructions to interact only with shadow stack memory and restricts access writes to shadow stack pages outside of these instructions. <br />
+
+In HDL, implementing *zicfiss* requires three major steps.
+- Implementing each of the five instructions mentioned above. 
+- Modifying the writeback stage of the pipeline to check for additional physical memory protections. 
+- Finally, it requires adding additional bitfields to numerous CSRs to enable/disable shadow stacks. 
+<br />
+
+Beyond that, much of the heavy lifting in reverse CFI is handled by the compiler and the operating system. 
+
+
+
