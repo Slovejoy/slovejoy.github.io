@@ -41,7 +41,7 @@ function_entry:
    c.jr x5
 ```
 
-Interestingly, RISC-V also extends its physical memory protection (PMP) *Smepmp* to include shadow stack pages. This protections intends for shadow stack instructions to interact only with shadow stack memory and restricts access writes to shadow stack pages outside of these instructions. <br />
+Interestingly, RISC-V also extends its physical memory protection (PMP) *Smepmp* to include shadow stack pages. These protections intends for shadow stack instructions to interact only with shadow stack memory and restricts access writes to shadow stack pages outside of these instructions. <br />
 
 In HDL, implementing *zicfiss* requires three major steps.
 - Implementing each of the five instructions mentioned above. 
