@@ -1,6 +1,6 @@
 ---
 layout: page
-title: "About"
+title: "/about"
 ---
 
 Security Researcher (very cool)

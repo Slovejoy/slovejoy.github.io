@@ -1,6 +1,6 @@
 ---
 layout: page
-title: CTF Writeups
+title: /ctf-writeups
 ---
 
 # 2023
